@@ -13,14 +13,20 @@ const User    = require('../models/User');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
-router.use(protect);
+// Note: `protect` is applied per-route — the OAuth callbacks are hit by the
+// provider's redirect, which carries no JWT.
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+
+// A browser navigation can't send the Authorization header, so the frontend
+// calls /connect via fetch with `?json=1` and navigates to the returned URL.
+const sendAuthUrl = (req, res, url) =>
+  req.query.json ? res.json({ url }) : res.redirect(url);
 
 // ─────────────────────────────────────────────────────────
 // GET /api/platforms — list connected platforms
 // ─────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', protect, (req, res) => {
   const { platforms } = req.user;
   const connected = Object.entries(platforms || {})
     .filter(([, v]) => v?.accessToken)
@@ -33,7 +39,7 @@ router.get('/', (req, res) => {
 // ══════════════════════════════════════════════════════════
 
 // GET /api/platforms/instagram/connect
-router.get('/instagram/connect', (req, res) => {
+router.get('/instagram/connect', protect, (req, res) => {
   const params = new URLSearchParams({
     client_id:     process.env.META_APP_ID,
     redirect_uri:  process.env.META_REDIRECT_URI,
@@ -41,11 +47,11 @@ router.get('/instagram/connect', (req, res) => {
     response_type: 'code',
     state:         `instagram|${req.user._id}`,
   });
-  res.redirect(`https://www.facebook.com/v18.0/dialog/oauth?${params}`);
+  sendAuthUrl(req, res, `https://www.facebook.com/v18.0/dialog/oauth?${params}`);
 });
 
 // GET /api/platforms/facebook/connect
-router.get('/facebook/connect', (req, res) => {
+router.get('/facebook/connect', protect, (req, res) => {
   const params = new URLSearchParams({
     client_id:     process.env.META_APP_ID,
     redirect_uri:  process.env.META_REDIRECT_URI,
@@ -53,7 +59,7 @@ router.get('/facebook/connect', (req, res) => {
     response_type: 'code',
     state:         `facebook|${req.user._id}`,
   });
-  res.redirect(`https://www.facebook.com/v18.0/dialog/oauth?${params}`);
+  sendAuthUrl(req, res, `https://www.facebook.com/v18.0/dialog/oauth?${params}`);
 });
 
 // GET /api/platforms/meta/callback  (shared callback for IG + FB)
@@ -133,7 +139,7 @@ router.get('/meta/callback', async (req, res) => {
 // Simple in-memory store for PKCE verifiers (use Redis in production)
 const pkceStore = new Map();
 
-router.get('/twitter/connect', (req, res) => {
+router.get('/twitter/connect', protect, (req, res) => {
   // Generate a random code verifier (43–128 chars, URL-safe)
   const verifier = Buffer.from(require('crypto').randomBytes(32)).toString('base64url');
   pkceStore.set(String(req.user._id), verifier);
@@ -147,7 +153,7 @@ router.get('/twitter/connect', (req, res) => {
     code_challenge:        verifier, // S256 in production; plain is fine for dev
     code_challenge_method: 'plain',
   });
-  res.redirect(`https://twitter.com/i/oauth2/authorize?${params}`);
+  sendAuthUrl(req, res, `https://twitter.com/i/oauth2/authorize?${params}`);
 });
 
 router.get('/twitter/callback', async (req, res) => {
@@ -200,7 +206,7 @@ router.get('/twitter/callback', async (req, res) => {
 // LINKEDIN  (OAuth 2.0)
 // ══════════════════════════════════════════════════════════
 
-router.get('/linkedin/connect', (req, res) => {
+router.get('/linkedin/connect', protect, (req, res) => {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id:     process.env.LINKEDIN_CLIENT_ID,
@@ -208,7 +214,7 @@ router.get('/linkedin/connect', (req, res) => {
     scope:         'r_liteprofile w_member_social',
     state:         String(req.user._id),
   });
-  res.redirect(`https://www.linkedin.com/oauth/v2/authorization?${params}`);
+  sendAuthUrl(req, res, `https://www.linkedin.com/oauth/v2/authorization?${params}`);
 });
 
 router.get('/linkedin/callback', async (req, res) => {
@@ -250,7 +256,7 @@ router.get('/linkedin/callback', async (req, res) => {
 // ══════════════════════════════════════════════════════════
 // DISCONNECT — DELETE /api/platforms/:platform
 // ══════════════════════════════════════════════════════════
-router.delete('/:platform', async (req, res) => {
+router.delete('/:platform', protect, async (req, res) => {
   const { platform } = req.params;
   const allowed = ['instagram', 'facebook', 'twitter', 'linkedin'];
   if (!allowed.includes(platform))

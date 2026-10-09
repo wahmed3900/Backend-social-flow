@@ -1,6 +1,6 @@
-# SocialFlow Backend
+# SocialFlow
 
-Node.js + Express + MongoDB REST API that powers the SocialFlow social media management app.
+Node.js + Express + MongoDB REST API plus a web frontend for the SocialFlow social media management app.
 
 ## Features
 
@@ -36,6 +36,7 @@ Edit `.env` and fill in:
 
 | Variable | Where to get it |
 |---|---|
+| `CLIENT_URL` | URL of the frontend — `http://localhost:5000` when the backend serves it (OAuth callbacks redirect here) |
 | `MONGODB_URI` | MongoDB Atlas connection string or `mongodb://localhost:27017/socialflow` |
 | `JWT_SECRET` | Any long random string (e.g. `openssl rand -hex 32`) |
 | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) — optional, fallback captions work without it |
@@ -61,7 +62,7 @@ npm run dev
 npm start
 ```
 
-Server starts on `http://localhost:5000` (or `PORT` from `.env`).
+Server starts on `http://localhost:5000` (or `PORT` from `.env`). Open that URL in a browser to use the app — the backend serves the frontend from `public/`.
 
 ---
 
@@ -93,6 +94,7 @@ All protected routes require `Authorization: Bearer <token>` header.
 | Method | Path | Description |
 |---|---|---|
 | GET    | `/api/platforms` | List connected platforms |
+| GET    | `/api/platforms/:platform/connect` | Redirect to the provider's OAuth page (add `?json=1` to get `{ url }` instead — the frontend uses this because browser redirects can't carry the JWT) |
 | GET    | `/api/platforms/instagram/connect` | Redirect to Meta OAuth |
 | GET    | `/api/platforms/facebook/connect` | Redirect to Meta OAuth |
 | GET    | `/api/platforms/meta/callback` | Meta OAuth callback (set as redirect URI in Meta app) |
@@ -148,6 +150,10 @@ socialflow-backend/
 │   └── services/
 │       ├── publisher.js       # Platform API integrations
 │       └── scheduler.js       # Cron: auto-publish scheduled posts
+├── public/                    # Frontend (served by Express)
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
 ├── uploads/                   # Media uploads (multer)
 ├── .env.example
 └── package.json
@@ -164,12 +170,19 @@ For production (Railway, Render, Fly.io, etc.):
 
 ---
 
-## Connect to the SocialFlow Frontend
+## Frontend
 
-The HTML frontend artifact (`socialflow.html`) talks to this backend. To wire them up, add a base URL constant at the top of the frontend JS:
+The frontend in `public/` is a dependency-free single-page app (plain HTML/CSS/JS). Express serves it, so after `npm run dev` just open `http://localhost:5000`.
 
-```js
-const API_BASE = 'http://localhost:5000/api';
-```
+What it does:
 
-Then replace the simulated fetch calls in the frontend with real `fetch()`/`axios` calls to this backend.
+- **Login / register**: the JWT is kept in `localStorage`
+- **Dashboard**: reach, engagement, sent and scheduled counts, a likes chart, recent posts, reach by platform, connected accounts
+- **Compose**: pick platforms, write or AI-generate captions, add hashtags and a media URL, then save a draft, schedule or publish now
+- **Posts**: filter by status and platform, edit, publish, delete, see per-platform results and errors
+- **Calendar**: scheduled and published posts by month
+- **Analytics**: engagement totals, posts per day, likes by platform, top posts
+- **Connectors**: OAuth connect and disconnect for Instagram, Facebook, Twitter/X and LinkedIn
+- **Plans**: shows your plan and monthly usage (billing is not wired up)
+
+To host the frontend somewhere else, such as a static host, change the `api-base` meta tag in `public/index.html` to the backend URL (e.g. `https://api.example.com/api`) and set `CLIENT_URL` to the frontend's URL so CORS and OAuth redirects work.

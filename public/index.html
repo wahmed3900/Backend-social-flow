@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- Where the API lives. "/api" works when the backend serves this file; change it
+     (e.g. "http://localhost:5000/api") if you host the frontend separately. -->
+<meta name="api-base" content="/api">
+<title>SocialFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── AUTH ─────────────────────────────────────────────────────── -->
+<div class="auth-screen" id="auth-screen" hidden>
+  <div class="auth-card">
+    <div class="logo">
+      <div class="logo-box"><svg viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg></div>
+      <span class="logo-name">SocialFlow</span>
+    </div>
+    <div class="auth-title" id="auth-title">Welcome back</div>
+    <div class="auth-sub" id="auth-sub">Log in to manage your social posts.</div>
+    <div class="auth-error" id="auth-error"></div>
+    <form id="auth-form">
+      <label class="field" id="name-field" hidden><span>Name</span><input name="name" autocomplete="name"></label>
+      <label class="field"><span>Email</span><input name="email" type="email" required autocomplete="email"></label>
+      <label class="field"><span>Password</span><input name="password" type="password" required minlength="6" autocomplete="current-password"></label>
+      <button class="btn btn-primary btn-block" type="submit" id="auth-submit">Log in</button>
+    </form>
+    <div class="auth-switch">
+      <span id="auth-switch-text">No account yet?</span>
+      <button class="link-btn" type="button" id="auth-switch">Create one</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SIDEBAR ──────────────────────────────────────────────────── -->
+<nav class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-box"><svg viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg></div>
+    <span class="logo-name">SocialFlow</span>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Main</div>
+    <button class="nav-btn" data-nav="dashboard">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-btn" data-nav="compose">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Compose
+    </button>
+    <button class="nav-btn" data-nav="posts">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>
+      Posts
+      <span class="nav-badge" id="sched-badge" hidden></span>
+    </button>
+    <button class="nav-btn" data-nav="calendar">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3h-1V1h-2v2H7V1H5v2H4C2.9 3 2 3.9 2 5v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>
+      Calendar
+    </button>
+    <button class="nav-btn" data-nav="analytics">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>
+      Analytics
+    </button>
+  </div>
+
+  <div class="nav-group" style="margin-top:8px">
+    <div class="nav-label">Settings</div>
+    <button class="nav-btn" data-nav="connectors">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+      Connectors
+    </button>
+    <button class="nav-btn" data-nav="pricing">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+      Plans
+    </button>
+  </div>
+
+  <div class="sb-bottom">
+    <div class="user-row" id="user-row">
+      <div class="avatar" id="user-avatar">?</div>
+      <div style="min-width:0">
+        <div class="user-name" id="user-name">—</div>
+        <div class="user-plan" id="user-plan"></div>
+      </div>
+      <div class="user-menu" id="user-menu">
+        <button data-action="open-password">Change password</button>
+        <button data-action="logout">Log out</button>
+      </div>
+    </div>
+  </div>
+</nav>
+<div class="sb-scrim" id="sb-scrim"></div>
+
+<!-- ── MAIN ─────────────────────────────────────────────────────── -->
+<div class="main">
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="btn-icon" id="menu-btn" title="Menu">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+      </button>
+      <div class="page-title" id="ptitle">Dashboard</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn-icon" id="theme-btn" title="Toggle theme">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 100 18A9 9 0 0012 3zm0 16a7 7 0 110-14 7 7 0 010 14z"/></svg>
+      </button>
+      <button class="btn btn-primary" data-nav="compose">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        New Post
+      </button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ── DASHBOARD ─────────────────────────────────────────── -->
+    <section class="view" id="v-dashboard">
+      <div class="stats-row">
+        <div class="stat"><div class="stat-lbl">Total Reach</div><div class="stat-val" id="st-reach">–</div><div class="stat-chg muted">across published posts</div></div>
+        <div class="stat"><div class="stat-lbl">Engagements</div><div class="stat-val" id="st-eng">–</div><div class="stat-chg muted" id="st-eng-sub">likes · comments · shares</div></div>
+        <div class="stat"><div class="stat-lbl">Posts Sent</div><div class="stat-val" id="st-pub">–</div><div class="stat-chg muted" id="st-pub-sub"></div></div>
+        <div class="stat"><div class="stat-lbl">Scheduled</div><div class="stat-val" id="st-sch">–</div><div class="stat-chg muted" id="st-next"></div></div>
+      </div>
+
+      <div class="dash-grid">
+        <div>
+          <div class="card" style="margin-bottom:18px">
+            <div class="card-head"><div class="card-title">Likes on Published Posts (Last 14 Days)</div></div>
+            <div class="card-body" style="padding-bottom:14px"><svg id="chart-svg" width="100%" height="160" style="overflow:visible"></svg></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Recent Posts</div>
+              <button class="btn btn-ghost btn-sm" data-nav="posts">View all</button>
+            </div>
+            <div class="card-body" style="padding:0 18px" id="recent-posts"><div class="empty">Loading…</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-head"><div class="card-title">Reach by Platform</div></div>
+            <div class="card-body"><div class="reach-list" id="reach-list"><div class="empty">Loading…</div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Connected Accounts</div>
+              <button class="btn btn-ghost btn-sm" data-nav="connectors">Manage</button>
+            </div>
+            <div class="card-body"><div style="display:flex;flex-direction:column;gap:9px" id="dash-conn"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── COMPOSE ───────────────────────────────────────────── -->
+    <section class="view" id="v-compose">
+      <div class="section-head">
+        <div>
+          <div class="section-title" id="compose-title">Create a Post</div>
+          <div class="section-sub">Write once, publish everywhere. Pick your platforms and schedule.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="cancel-edit" hidden>Cancel editing</button>
+      </div>
+      <div class="compose-wrap">
+        <div>
+          <div class="compose-card">
+            <div class="plat-chips" id="compose-chips"></div>
+            <textarea class="compose-area" id="compose-text" maxlength="2200" placeholder="What do you want to say? Write your caption here, or let AI write it for you →"></textarea>
+            <div class="compose-footer">
+              <div class="char-count" id="char-count">0 / 280</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" id="media-btn">📷 Media URL</button>
+                <button class="btn btn-ghost btn-sm" id="hashtag-btn"># Hashtags</button>
+              </div>
+            </div>
+            <div id="media-wrap" hidden style="padding:0 18px 12px">
+              <input class="time-input" id="media-url" type="url" placeholder="https://… public image URL (required for Instagram)">
+            </div>
+            <div class="compose-actions">
+              <button class="btn btn-ghost" id="draft-btn">Save Draft</button>
+              <div style="display:flex;gap:8px;margin-left:auto">
+                <button class="btn btn-ghost" id="schedule-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+                  Schedule
+                </button>
+                <button class="btn btn-primary" id="publish-btn">Publish Now</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="ai-panel">
+            <div class="ai-head">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+              <div class="ai-title">AI Caption Generator</div>
+            </div>
+            <div class="ai-body">
+              <input class="ai-input" id="ai-prompt" placeholder="Describe your post topic…">
+              <button class="btn btn-primary" style="width:100%;justify-content:center" id="gen-btn">✨ Generate Captions</button>
+              <div class="gen-status" id="gen-status"><div class="spinner"></div>Writing captions for you…</div>
+              <div class="ai-suggestions" id="ai-suggestions"></div>
+            </div>
+          </div>
+          <div class="sched-card">
+            <div class="sched-lbl">Schedule Post</div>
+            <input type="datetime-local" class="time-input" id="sched-time">
+            <div style="font-size:11.5px;color:var(--fg3);margin-top:4px">Pick a time, then hit <strong>Schedule</strong>. The server publishes it automatically.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── POSTS ─────────────────────────────────────────────── -->
+    <section class="view" id="v-posts">
+      <div class="section-head">
+        <div>
+          <div class="section-title">All Posts</div>
+          <div class="section-sub" id="posts-count"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <select class="select" id="f-status">
+            <option value="">All statuses</option>
+            <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="published">Published</option>
+            <option value="failed">Failed</option>
+          </select>
+          <select class="select" id="f-platform">
+            <option value="">All platforms</option>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="twitter">Twitter/X</option>
+            <option value="linkedin">LinkedIn</option>
+          </select>
+        </div>
+      </div>
+      <div class="card"><div class="card-body" style="padding:0 18px" id="posts-list"></div></div>
+      <div class="pager" id="pager"></div>
+    </section>
+
+    <!-- ── CALENDAR ──────────────────────────────────────────── -->
+    <section class="view" id="v-calendar">
+      <div class="cal-nav-row">
+        <div class="cal-month" id="cal-month"></div>
+        <div class="cal-nav-btns">
+          <button class="btn btn-icon" id="cal-prev">◀</button>
+          <button class="btn btn-ghost btn-sm" id="cal-today">Today</button>
+          <button class="btn btn-icon" id="cal-next">▶</button>
+        </div>
+      </div>
+      <div class="cal-table">
+        <div class="cal-head-row">
+          <div class="cal-dn">Sun</div><div class="cal-dn">Mon</div><div class="cal-dn">Tue</div><div class="cal-dn">Wed</div>
+          <div class="cal-dn">Thu</div><div class="cal-dn">Fri</div><div class="cal-dn">Sat</div>
+        </div>
+        <div class="cal-body" id="cal-body"></div>
+      </div>
+    </section>
+
+    <!-- ── ANALYTICS ─────────────────────────────────────────── -->
+    <section class="view" id="v-analytics">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Analytics</div>
+          <div class="section-sub">Engagement on your published posts · all platforms</div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-lbl">Likes</div><div class="stat-val" id="an-likes">–</div></div>
+        <div class="stat"><div class="stat-lbl">Comments</div><div class="stat-val" id="an-comments">–</div></div>
+        <div class="stat"><div class="stat-lbl">Shares</div><div class="stat-val" id="an-shares">–</div></div>
+        <div class="stat"><div class="stat-lbl">Reach</div><div class="stat-val" id="an-reach">–</div></div>
+      </div>
+      <div class="analytics-grid">
+        <div class="card full">
+          <div class="card-head"><div class="card-title">Posts Published (Last 30 Days)</div></div>
+          <div class="card-body"><svg id="analytics-svg" width="100%" height="180" style="overflow:visible"></svg></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Likes by Platform</div></div>
+          <div class="card-body"><svg id="bar-svg" width="100%" height="180" style="overflow:visible"></svg></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Top Performing Posts</div></div>
+          <div class="card-body" style="padding:0 18px" id="top-posts"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CONNECTORS ────────────────────────────────────────── -->
+    <section class="view" id="v-connectors">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Connectors</div>
+          <div class="section-sub" id="conn-sub">Connect your social accounts to start publishing.</div>
+        </div>
+      </div>
+      <div class="conn-grid" id="conn-grid"></div>
+    </section>
+
+    <!-- ── PRICING ───────────────────────────────────────────── -->
+    <section class="view" id="v-pricing">
+      <div style="text-align:center;max-width:560px;margin:0 auto 36px">
+        <div style="font-family:var(--font-d);font-size:28px;font-weight:800;color:var(--fg);line-height:1.15;margin-bottom:10px">Start free. Upgrade when<br>you're ready to grow.</div>
+        <div style="font-size:14px;color:var(--fg3);line-height:1.6" id="plan-usage"></div>
+      </div>
+      <div class="price-grid">
+        <div class="price-card" data-plan="free">
+          <div class="price-tag">Free</div>
+          <div><span class="price-amt">$0</span> <span class="muted">/month</span></div>
+          <div class="price-desc">Perfect to get started.</div>
+          <button class="btn btn-ghost btn-block plan-btn">Get Started Free</button>
+          <div class="feat-list">
+            <div class="feat">3 social accounts</div><div class="feat">10 posts / month</div>
+            <div class="feat">Basic analytics</div><div class="feat">Content calendar</div>
+            <div class="feat">AI caption generator</div>
+            <div class="feat no">Team members</div>
+          </div>
+        </div>
+        <div class="price-card hl" data-plan="creator">
+          <div class="ribbon">Most Popular</div>
+          <div class="price-tag">Creator</div>
+          <div><span class="price-amt">$9</span> <span style="color:rgba(255,255,255,.5)">/month</span></div>
+          <div class="price-desc">For creators and solopreneurs growing their brand.</div>
+          <button class="btn btn-primary btn-block plan-btn">Upgrade to Creator</button>
+          <div class="feat-list">
+            <div class="feat-dark">6 social accounts</div><div class="feat-dark">Unlimited posts</div>
+            <div class="feat-dark">Advanced analytics</div><div class="feat-dark">Content calendar</div>
+            <div class="feat-dark">✨ AI caption generator</div>
+            <div class="feat-dark no-dark">Team members</div>
+          </div>
+        </div>
+        <div class="price-card" data-plan="pro">
+          <div class="price-tag">Pro</div>
+          <div><span class="price-amt">$29</span> <span class="muted">/month</span></div>
+          <div class="price-desc">For agencies and teams managing multiple brands.</div>
+          <button class="btn btn-ghost btn-block plan-btn">Upgrade to Pro</button>
+          <div class="feat-list">
+            <div class="feat">Unlimited accounts</div><div class="feat">Unlimited posts</div>
+            <div class="feat">Full analytics</div><div class="feat">Content calendar</div>
+            <div class="feat">✨ AI caption generator</div>
+            <div class="feat">Team members</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ── PASSWORD MODAL ──────────────────────────────────────────── -->
+<div class="modal-bg" id="pw-modal">
+  <div class="modal">
+    <div class="card-head"><div class="card-title">Change password</div><button class="btn-icon" data-action="close-modal">✕</button></div>
+    <form class="card-body" id="pw-form">
+      <div class="auth-error" id="pw-error"></div>
+      <label class="field"><span>Current password</span><input type="password" name="currentPassword" required autocomplete="current-password"></label>
+      <label class="field"><span>New password</span><input type="password" name="newPassword" required minlength="6" autocomplete="new-password"></label>
+      <button class="btn btn-primary btn-block" type="submit">Update password</button>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
