@@ -8,7 +8,7 @@ Node.js + Express + MongoDB REST API that powers the SocialFlow social media man
 - **Multi-platform Publishing** — Instagram, Facebook, Twitter/X, LinkedIn
 - **Post Scheduler** — cron job publishes posts automatically at their scheduled time
 - **AI Captions** — GPT-3.5-turbo generates 3 caption variants per topic
-- **Text-to-Speech** — free voiceovers via Microsoft Edge neural voices (edge-tts, no API key)
+- **Text-to-Speech** — voiceovers via Azure AI Speech, or free Microsoft Edge neural voices when no Azure key is set
 - **Analytics** — per-platform engagement aggregations
 - **Plan Limits** — Free (10 posts/mo), Creator (unlimited), Pro (unlimited + teams)
 - **OAuth Flows** — connect/disconnect each social platform
@@ -43,6 +43,7 @@ Edit `.env` and fill in:
 | `META_APP_ID` / `META_APP_SECRET` | [developers.facebook.com](https://developers.facebook.com) |
 | `TWITTER_CLIENT_ID` / `TWITTER_CLIENT_SECRET` | [developer.twitter.com](https://developer.twitter.com) |
 | `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` | [linkedin.com/developers](https://www.linkedin.com/developers) |
+| `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` | Azure portal → your Speech resource → *Keys and Endpoint* ([Speech Studio](https://speech.microsoft.com/portal)) — optional, TTS falls back to free Edge voices without it |
 
 ### 4. (Optional) Seed demo data
 
@@ -126,7 +127,7 @@ All protected routes require `Authorization: Bearer <token>` header.
 | POST | `/api/ai/tts` | `{ text, voice?, rate?, pitch?, volume? }` | Text-to-speech, returns `audio/mpeg` (MP3) |
 | GET  | `/api/ai/voices` | — | List available voices (`?locale=en-US`) |
 
-**TTS notes:** `voice` defaults to `en-US-AriaNeural` (override with `TTS_DEFAULT_VOICE` in `.env`). `rate`/`pitch`/`volume` accept keywords (`slow`, `fast`, `high`, …) or relative values like `"+10%"`, `"-5Hz"`. Text is limited to 5000 characters. Uses Microsoft Edge's online read-aloud service via [`msedge-tts`](https://www.npmjs.com/package/msedge-tts) — it's unofficial and undocumented, so it can change without notice; for guaranteed uptime use Azure AI Speech.
+**TTS notes:** If `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` (e.g. `eastus`) are set, speech comes from Azure AI Speech (official; free tier is 500k characters/month). Otherwise it uses Microsoft Edge's read-aloud service via [`msedge-tts`](https://www.npmjs.com/package/msedge-tts), which is free but unofficial and can change without notice. The `X-TTS-Provider` response header says which one was used. `voice` defaults to `en-US-AriaNeural` (override with `TTS_DEFAULT_VOICE`); pick voices from `/api/ai/voices` or the Voice Gallery in Speech Studio. `rate`/`pitch`/`volume` accept keywords (`slow`, `fast`, `high`, …) or relative values like `"+10%"`, `"-5Hz"`. Text is limited to 5000 characters.
 
 ---
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const OpenAI  = require('openai');
+const axios   = require('axios');
 const { MsEdgeTTS, OUTPUT_FORMAT } = require('msedge-tts');
 const { protect } = require('../middleware/auth');
 
@@ -67,10 +68,17 @@ router.post('/hashtags', protect, async (req, res) => {
   }
 });
 
-// ── Edge TTS (free Microsoft Edge neural voices, no API key) ───
+// ── Text-to-speech ──────────────────────────────────────────────
+// Uses Azure AI Speech when AZURE_SPEECH_KEY + AZURE_SPEECH_REGION are set
+// (official, paid, https://speech.microsoft.com/portal), otherwise falls back
+// to the free Microsoft Edge read-aloud voices (unofficial, no API key).
+const AZURE_KEY       = process.env.AZURE_SPEECH_KEY;
+const AZURE_REGION    = process.env.AZURE_SPEECH_REGION;
+const USE_AZURE       = Boolean(AZURE_KEY && AZURE_REGION);
 const DEFAULT_VOICE   = process.env.TTS_DEFAULT_VOICE || 'en-US-AriaNeural';
 const MAX_TTS_CHARS   = 5000;
-const VOICE_RE        = /^[a-z]{2,3}-[A-Za-z]{2,4}(-[A-Za-z]+)?-[A-Za-z]+Neural$/;
+const MP3_FORMAT      = 'audio-24khz-48kbitrate-mono-mp3';
+const VOICE_RE        = /^[a-z]{2,3}-[A-Za-z]{2,4}(-[A-Za-z]+)?-[A-Za-z0-9:]+Neural$/;
 const PROSODY_KEYWORD = /^(x-slow|slow|medium|fast|x-fast|x-low|low|high|x-high|silent|x-soft|soft|loud|x-loud|default)$/;
 const PROSODY_RELATIVE = /^[+-]\d{1,3}(%|Hz)$/;
 
@@ -83,19 +91,70 @@ const escapeXml = (str) => str
 
 const validProsody = (v) => v === undefined || PROSODY_KEYWORD.test(v) || PROSODY_RELATIVE.test(v);
 
+const azureUrl = (path) => `https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/${path}`;
+
+async function listVoices() {
+  if (USE_AZURE) {
+    const { data } = await axios.get(azureUrl('voices/list'), {
+      headers: { 'Ocp-Apim-Subscription-Key': AZURE_KEY },
+    });
+    return data.map(v => ({ name: v.ShortName, gender: v.Gender, locale: v.Locale, friendlyName: v.DisplayName }));
+  }
+  const tts = new MsEdgeTTS();
+  return (await tts.getVoices()).map(v => ({
+    name: v.ShortName, gender: v.Gender, locale: v.Locale, friendlyName: v.FriendlyName,
+  }));
+}
+
+async function synthesizeAzure(text, voice, { rate, pitch, volume }) {
+  const locale = voice.split('-').slice(0, 2).join('-');
+  const attrs = Object.entries({ rate, pitch, volume })
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => `${k}="${v}"`)
+    .join(' ');
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}">`
+    + `<voice name="${voice}"><prosody ${attrs}>${escapeXml(text)}</prosody></voice></speak>`;
+
+  const { data } = await axios.post(azureUrl('v1'), ssml, {
+    headers: {
+      'Ocp-Apim-Subscription-Key': AZURE_KEY,
+      'Content-Type': 'application/ssml+xml',
+      'X-Microsoft-OutputFormat': MP3_FORMAT,
+      'User-Agent': 'socialflow-backend',
+    },
+    responseType: 'arraybuffer',
+  });
+  return Buffer.from(data);
+}
+
+async function synthesizeEdge(text, voice, prosody) {
+  const tts = new MsEdgeTTS();
+  try {
+    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    const { audioStream } = tts.toStream(escapeXml(text), prosody);
+    const chunks = [];
+    await new Promise((resolve, reject) => {
+      audioStream.on('data', c => chunks.push(c));
+      audioStream.on('end', resolve);
+      audioStream.on('error', reject);
+    });
+    return Buffer.concat(chunks);
+  } finally {
+    tts.close();
+  }
+}
+
 let voicesCache = null;
 
-// ── GET /api/ai/voices — list Edge TTS voices (?locale=en-US) ───
+// ── GET /api/ai/voices — list TTS voices (?locale=en-US) ────────
 router.get('/voices', protect, async (req, res) => {
   try {
-    if (!voicesCache) {
-      const tts = new MsEdgeTTS();
-      voicesCache = (await tts.getVoices()).map(v => ({
-        name: v.ShortName, gender: v.Gender, locale: v.Locale, friendlyName: v.FriendlyName,
-      }));
-    }
+    if (!voicesCache) voicesCache = await listVoices();
     const { locale } = req.query;
-    res.json({ voices: locale ? voicesCache.filter(v => v.locale === locale) : voicesCache });
+    res.json({
+      provider: USE_AZURE ? 'azure' : 'edge',
+      voices: locale ? voicesCache.filter(v => v.locale === locale) : voicesCache,
+    });
   } catch (err) {
     res.status(502).json({ error: `Could not fetch voices: ${err.message}` });
   }
@@ -112,38 +171,29 @@ router.post('/tts', protect, async (req, res) => {
   if (text.length > MAX_TTS_CHARS) {
     return res.status(400).json({ error: `Text must be at most ${MAX_TTS_CHARS} characters` });
   }
-  if (!VOICE_RE.test(voice)) {
+  if (typeof voice !== 'string' || !VOICE_RE.test(voice)) {
     return res.status(400).json({ error: 'Invalid voice name (e.g. en-US-AriaNeural)' });
   }
   if (![rate, pitch, volume].every(validProsody)) {
     return res.status(400).json({ error: 'rate/pitch/volume must be a keyword (e.g. "fast") or relative value (e.g. "+10%", "-5Hz")' });
   }
 
-  const tts = new MsEdgeTTS();
   try {
-    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-    const { audioStream } = tts.toStream(escapeXml(text), { rate, pitch, volume });
-
-    const chunks = [];
-    await new Promise((resolve, reject) => {
-      audioStream.on('data', c => chunks.push(c));
-      audioStream.on('end', resolve);
-      audioStream.on('error', reject);
-    });
-
-    const audio = Buffer.concat(chunks);
+    const synthesize = USE_AZURE ? synthesizeAzure : synthesizeEdge;
+    const audio = await synthesize(text, voice, { rate, pitch, volume });
     if (!audio.length) return res.status(502).json({ error: 'TTS service returned no audio' });
 
     res.set({
       'Content-Type': 'audio/mpeg',
       'Content-Length': audio.length,
       'Content-Disposition': 'inline; filename="speech.mp3"',
+      'X-TTS-Provider': USE_AZURE ? 'azure' : 'edge',
     });
     res.send(audio);
   } catch (err) {
-    res.status(502).json({ error: `TTS failed: ${err.message}` });
-  } finally {
-    tts.close();
+    const status = err.response?.status;
+    const detail = status ? `Azure responded ${status}` : err.message;
+    res.status(502).json({ error: `TTS failed: ${detail}` });
   }
 });
 
