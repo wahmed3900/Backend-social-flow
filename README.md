@@ -8,6 +8,7 @@ Node.js + Express + MongoDB REST API that powers the SocialFlow social media man
 - **Multi-platform Publishing** — Instagram, Facebook, Twitter/X, LinkedIn
 - **Post Scheduler** — cron job publishes posts automatically at their scheduled time
 - **AI Captions** — GPT-3.5-turbo generates 3 caption variants per topic
+- **Text-to-Speech** — free voiceovers via Microsoft Edge neural voices (edge-tts, no API key)
 - **Analytics** — per-platform engagement aggregations
 - **Plan Limits** — Free (10 posts/mo), Creator (unlimited), Pro (unlimited + teams)
 - **OAuth Flows** — connect/disconnect each social platform
@@ -122,6 +123,10 @@ All protected routes require `Authorization: Bearer <token>` header.
 |---|---|---|---|
 | POST | `/api/ai/captions` | `{ topic, platforms[] }` | Generate 3 captions |
 | POST | `/api/ai/hashtags` | `{ text }` | Generate 10 hashtags |
+| POST | `/api/ai/tts` | `{ text, voice?, rate?, pitch?, volume? }` | Text-to-speech, returns `audio/mpeg` (MP3) |
+| GET  | `/api/ai/voices` | — | List available voices (`?locale=en-US`) |
+
+**TTS notes:** `voice` defaults to `en-US-AriaNeural` (override with `TTS_DEFAULT_VOICE` in `.env`). `rate`/`pitch`/`volume` accept keywords (`slow`, `fast`, `high`, …) or relative values like `"+10%"`, `"-5Hz"`. Text is limited to 5000 characters. Uses Microsoft Edge's online read-aloud service via [`msedge-tts`](https://www.npmjs.com/package/msedge-tts) — it's unofficial and undocumented, so it can change without notice; for guaranteed uptime use Azure AI Speech.
 
 ---
 
